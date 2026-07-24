@@ -1,11 +1,11 @@
 @echo off
 rem ========================================================================================
-rem  CBufferPaint specimen-sheet demo build script.
+rem  PsBufferPaint specimen-sheet demo build script.
 rem
 rem  Usage:  build.bat          builds main.exe
 rem          build.bat clean    deletes build output
 rem
-rem  Run the geometry self-test with:  set CBUFFERPAINT_SELFTEST=1 && main.exe
+rem  Run the geometry self-test with:  set PSBUFFERPAINT_SELFTEST=1 && main.exe
 rem ========================================================================================
 
 setlocal

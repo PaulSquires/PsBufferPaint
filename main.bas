@@ -1,13 +1,13 @@
 ' ========================================================================================
-' CBufferPaint - demo harness
+' PsBufferPaint - demo harness
 '
 ' Draws a specimen sheet of every primitive so the rendering can be judged by eye, and
-' hosts the geometry self-test (CBUFFERPAINT_SELFTEST=1).
+' hosts the geometry self-test (PSBUFFERPAINT_SELFTEST=1).
 '
 ' Note the two host obligations it demonstrates, because a host that skips either gets a
 ' build that fails confusingly rather than one that misbehaves visibly:
 '   1. AfxGdipInit / AfxGdipShutdown must bracket the message loop (see WinMain).
-'   2. No identifier may be named `ok` -- CBufferPaint.bi pulls in GDI+'s Status enum,
+'   2. No identifier may be named `ok` -- PsBufferPaint.bi pulls in GDI+'s Status enum,
 '      whose Ok = 0 lands in AfxNova, and every host here says `using AfxNova`.
 ' ========================================================================================
 
@@ -22,8 +22,8 @@
 using AfxNova
 
 
-#define APPNAME          wstr("CBufferPaint specimen")
-#define APPCLASSNAME     wstr("cbufferpaint_demo_class")
+#define APPNAME          wstr("PsBufferPaint specimen")
+#define APPCLASSNAME     wstr("PsBufferPaint_demo_class")
 
 #DEFINE GUIFONT          wstr("Segoe UI")
 
@@ -50,7 +50,7 @@ end type
 dim shared theme as THEME_TYPE
 
 
-#include once "CBufferPaint.inc"
+#include once "PsBufferPaint.inc"
 #include once "frmMain.inc"
 
 
@@ -75,7 +75,7 @@ function WinMain( _
     ' Show the main form
     function = frmMain_Show( 0 )
 
-    ' Every window is destroyed and every CBufferPaint has run its destructor by here,
+    ' Every window is destroyed and every PsBufferPaint has run its destructor by here,
     ' so no CGp* object can still be alive. Precedes CoUninitialize: GDI+ leans on COM.
     AfxGdipShutdown( gdipToken )
 

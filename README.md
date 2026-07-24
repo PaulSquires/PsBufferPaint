@@ -1,4 +1,4 @@
-# CBufferPaint
+# PsBufferPaint
 
 A flicker-free drawing surface for FreeBASIC Win32 applications: you paint into an offscreen
 bitmap and it is copied to the screen in one blit, so nothing the user sees is ever half-drawn.
@@ -21,8 +21,8 @@ object pays its cost internally: you never have to think about which API you are
 
 | File | Purpose |
 |---|---|
-| `CBufferPaint.bi` | Declarations — the `CBufferPaint` type and the free functions |
-| `CBufferPaint.inc` | Implementation |
+| `PsBufferPaint.bi` | Declarations — the `PsBufferPaint` type and the free functions |
+| `PsBufferPaint.inc` | Implementation |
 
 **AfxNova is required.** `CBufferPaint.bi` includes `AfxNova\CGdiPlus.inc` itself, so you do not
 have to. Sources include AfxNova relative to the workspace root
@@ -36,8 +36,8 @@ fbc64.exe -i "C:\dev" main.bas
 `BeginDoubleBuffer`, because that is where it gets the DPI scale from. Every other method works
 on any `HWND`.
 
-**Include order.** `CBufferPaint.bi` pulls in its own GDI+ dependency, so the only ordering rule
-is that `CBufferPaint.inc` comes before anything that draws through it:
+**Include order.** `PsBufferPaint.bi` pulls in its own GDI+ dependency, so the only ordering rule
+is that `PsBufferPaint.inc` comes before anything that draws through it:
 
 ```freebasic
 #include once "windows.bi"
@@ -47,7 +47,7 @@ is that `CBufferPaint.inc` comes before anything that draws through it:
 
 using AfxNova
 
-#include once "CBufferPaint.inc"
+#include once "PsBufferPaint.inc"
 #include once "frmMain.inc"        ' your own forms, which paint through it
 ```
 
@@ -61,7 +61,7 @@ AfxGdipShutdown( gdipToken )
 ```
 
 `AfxGdipShutdown` must come **after** every window is destroyed. Each repaint builds a
-`CBufferPaint` and tears it down again, and the teardown deletes GDI+ objects — shutting GDI+ down
+`PsBufferPaint` and tears it down again, and the teardown deletes GDI+ objects — shutting GDI+ down
 while a window can still paint means those deletions run against a dead library. Skip
 `AfxGdipInit` altogether and nothing geometric draws at all, while text still appears, which makes
 the symptom look like a colour bug rather than a missing initialisation.
@@ -70,7 +70,7 @@ the symptom look like a colour bug rather than a missing initialisation.
 previously compiled, and the error will not point at the cause. GDI+ defines a `Status` enum whose
 first member is `Ok = 0`, and that enum lives in namespace `AfxNova`. Hosts customarily say
 `using AfxNova`, which pulls the name into scope — so an existing variable, parameter or function
-of yours called `ok` becomes a duplicate definition the moment `CBufferPaint.bi` is included. It
+of yours called `ok` becomes a duplicate definition the moment `PsBufferPaint.bi` is included. It
 cannot be fixed from inside this file, because it is the host's own `using AfxNova` that exposes
 the name. Rename yours; `bOK` is the convention here.
 
@@ -83,7 +83,7 @@ exit, with `BeginDoubleBuffer` / `EndDoubleBuffer` bracketing everything you dra
 
 ```freebasic
 case WM_PAINT
-    dim b as CBufferPaint
+    dim b as PsBufferPaint
     b.BeginDoubleBuffer( hwnd )
 
     ' Clear the whole surface first.
@@ -124,7 +124,7 @@ That is the whole minimum. Everything below is refinement.
 
 ### The object is a stack local, and its lifetime is one repaint
 
-You do not keep a `CBufferPaint` around between paints. Declare it inside the handler and let it
+You do not keep a `PsBufferPaint` around between paints. Declare it inside the handler and let it
 go out of scope at the end. The GDI+ `Graphics`, pen and brush it builds live only as long as the
 object does, so a long-lived instance would hold GDI+ objects open indefinitely.
 
@@ -387,7 +387,7 @@ Not members; they need no buffer.
 |---|---|
 | `isMouseOverRECT( hWin, rc ) as boolean` | TRUE when the cursor is inside `rc`, which is given in `hWin`'s **client** coordinates. The rect is taken by value, so yours is not modified. Purely positional: it does not consider which window is actually on top, so a rect covered by another window still tests TRUE. |
 | `isMouseOverWindow( hChild ) as boolean` | TRUE when `hChild` is exactly the window under the cursor. Unlike the above this *is* a hit test against the real window stack, so a child window sitting on top makes it FALSE. |
-| `PaintRect( hDC, rc, clr ) as long` | Fills `rc` with `clr` on **any** DC, via `ExtTextOut`/`ETO_OPAQUE`. Nothing to do with a buffer's state — use it when you have a bare DC and no `CBufferPaint`. Distinct from the same-named method, which takes only a rect and uses the buffer's back colour. |
+| `PaintRect( hDC, rc, clr ) as long` | Fills `rc` with `clr` on **any** DC, via `ExtTextOut`/`ETO_OPAQUE`. Nothing to do with a buffer's state — use it when you have a bare DC and no `PsBufferPaint`. Distinct from the same-named method, which takes only a rect and uses the buffer's back colour. |
 
 ---
 
@@ -417,7 +417,7 @@ mention alpha simply mean "opaque".
 
 ## Constants
 
-`CBufferPaint.bi` defines no constants, enums or macros of its own. What you pass to the drawing
+`PsBufferPaint.bi` defines no constants, enums or macros of its own. What you pass to the drawing
 methods are ordinary Win32 values: `COLORREF` colours, `DT_*` flags for the text methods, and a GDI
 `PS_*` pen style for `PaintRectFactory`.
 

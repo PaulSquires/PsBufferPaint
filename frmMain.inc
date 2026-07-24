@@ -1,4 +1,4 @@
-'    CBufferPaint - demo harness
+'    PsBufferPaint - demo harness
 '    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
 '
 '    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 ' rules must stay crisp. A curve that is stair-stepped, or a 1px divider that has gone
 ' grey and soft, is the failure this sheet is here to make obvious.
 ' ========================================================================================
-private sub PaintSpecimen( byval hwnd as HWND, byval b as CBufferPaint ptr )
+private sub PaintSpecimen( byval hwnd as HWND, byval b as PsBufferPaint ptr )
 
     dim as RECT rcAll = b->rcClient()
 
@@ -88,7 +88,7 @@ private sub PaintSpecimen( byval hwnd as HWND, byval b as CBufferPaint ptr )
     b->PaintEllipse( @r8, 2 )
 
     ' A pill is just a rounded rect whose corner diameter equals its height -- both ends
-    ' become exact semicircles. This is the shape CToggle draws.
+    ' become exact semicircles. This is the shape PsToggle draws.
     dim as RECT r9 = type( x0 + cellH * 3 + gap * 2, y + 10, x0 + cellH * 3 + gap * 2 + 84, y + cellH - 10 )
     b->SetBackColor( theme.FocusAccent )
     b->PaintRoundRect( @r9, r9.bottom - r9.top )
@@ -123,7 +123,7 @@ function frmMain_WndProc( byval hwnd as HWND, byval uMsg as UINT, _
             return true
 
         case WM_PAINT
-            dim b as CBufferPaint
+            dim b as PsBufferPaint
             b.BeginDoubleBuffer( hwnd )
             PaintSpecimen( hwnd, @b )
             b.EndDoubleBuffer()
@@ -158,7 +158,7 @@ function frmMain_Show( byval hWndParent as HWND ) as LRESULT
 
     ' The self-test needs a CWindow-backed HWND (PaintLine asks it for the DPI scale),
     ' so it runs here rather than from WinMain.
-    if environ("CBUFFERPAINT_SELFTEST") = "1" then CBufferPaint_RunSelfTest( HWND_FRMMAIN )
+    if environ("PSBUFFERPAINT_SELFTEST") = "1" then PsBufferPaint_RunSelfTest( HWND_FRMMAIN )
 
     ShowWindow( HWND_FRMMAIN, SW_SHOW )
     UpdateWindow( HWND_FRMMAIN )
