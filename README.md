@@ -184,9 +184,12 @@ set until you change them:
 
 | Colour | Consumed by |
 |---|---|
-| Back colour | Every **fill**: `PaintRect`, `PaintClientRect`, `PaintRoundRect`, the interiors of `PaintBorderRect` / `PaintRoundBorderRect`, `PaintEllipse`, `PaintIconButton` |
-| Pen colour | Every **stroke**: the borders of `PaintBorderRect` / `PaintRoundBorderRect`, `PaintRoundOutline`, the rim of `PaintEllipse` — and **`PaintLine`, whose rules are strokes even though they are drawn as filled rectangles** |
+| Back colour | Every **fill**: `PaintRect`, `PaintClientRect`, `PaintRoundRect`, the interiors of `PaintBorderRect` / `PaintRoundBorderRect`, `PaintEllipse`, `PaintPolygon`, `PaintIconButton` |
+| Pen colour | Every **stroke**: the borders of `PaintBorderRect` / `PaintRoundBorderRect`, `PaintRoundOutline`, the rim of `PaintEllipse`, the outline of `PaintPolygon` — and **`PaintLine`, whose rules are strokes even though they are drawn as filled rectangles** |
 | Fore colour | Text: `PaintText`, `PaintTextEx`, and the caption inside `PaintIconButton` |
+
+`PaintGradientRect` is the one exception: its two stops are **arguments**, so it consumes neither
+the back colour nor the pen colour.
 
 The consequence worth internalising: hover and selection styling is entirely yours. The buffer
 always paints with whatever colours are set right now, so decide the mood first — with
@@ -291,7 +294,15 @@ Firm properties, not settings:
   rather than being cut off.
 - **`PaintRoundOutline` with a pen width of 0 or less draws nothing at all**, rather than falling
   back to a fill.
-- **`PaintEllipse` is always antialiased**, with no way to turn that off.
+- **`PaintEllipse` and `PaintPolygon` are always antialiased**, with no way to turn that off. The
+  square-cornered methods are the opposite — they switch smoothing off, because antialiasing an
+  axis-aligned edge only makes it grey and soft.
+- **`PaintPolygon` does not carry the `-1` its neighbours do.** `PaintRoundRect`, `PaintEllipse`
+  and `PaintGradientRect` each stop one pixel short of `right`/`bottom` because each mirrors a GDI
+  original that measurably does. A polygon has no rect and no GDI original, so its vertices are
+  used verbatim — a 4-vertex box covers exactly the pixels `PaintRect` covers on the same corners.
+- **`PaintGradientRect` never strokes**, whatever the pen colour is. Frame it afterwards with
+  `PaintRoundOutline`; `PaintBorderRect` would fill straight back over it.
 - **The cached `BeginDoubleBuffer` overload does not create a bitmap.** You supply the DC with a
   bitmap already selected and large enough for the rectangle; the buffer saves and restores the
   DC's state around the paint but never deletes either.
@@ -350,6 +361,8 @@ unmodified.
 | `PaintRoundBorderRect( rc, nCurvature = 20, nPenWidth = 1 ) as long` | A rounded rectangle filled with the back colour **and** stroked with the pen colour. `nCurvature` is a **diameter**. |
 | `PaintRoundOutline( rc, nCurvature = 20, nPenWidth = 1 ) as long` | Strokes a rounded rectangle in the pen colour and **leaves the interior untouched**. This is the one to use over already-painted pixels — a focus ring, a frame around content. Draws nothing when `nPenWidth <= 0`. |
 | `PaintEllipse( rc, nPenWidth = 0 ) as long` | An ellipse inscribed in `rc`, filled with the back colour. With `nPenWidth > 0` the rim is also stroked with the pen colour. Always antialiased. Stops one pixel short of `right`/`bottom`, matching GDI. |
+| `PaintGradientRect( rc, clr1, clr2, nMode = LinearGradientModeVertical, nCurvature = 0, rcBrush = 0 ) as long` | Fills `rc` — square or rounded — with a two-stop linear gradient. **Fill only, never strokes**; put a frame over it with `PaintRoundOutline`. The two colours are arguments, not object state, so this is the one geometry method that ignores the back colour. `nMode` is horizontal(0) / vertical(1) / forward-diagonal(2) / backward-diagonal(3). `nCurvature` is a **diameter**, and the extent follows `PaintRectFactory`'s `-1`, not `PaintRect`'s full extent. `rcBrush` measures the ramp across a **different** rect than the one being filled, so one block of a segmented bar can be filled with its slice of a gradient spanning the whole run; `0` means measure across `rc`. |
+| `PaintPolygon( pts, nCount, nPenWidth = 0 ) as long` | Fills the polygon through `nCount` vertices with the back colour; with `nPenWidth > 0` the outline is also stroked with the pen colour. `pts` is a `POINT ptr` to at least `nCount` vertices — the figure is closed for you. **The vertices are used exactly as given**, with no `-1`: every other closed shape here mirrors a GDI original whose fill stops a row short of its own rect, but a polygon has no rect and no GDI original. Always antialiased — a polygon exists for its diagonals. The stroke is **centred** on the path rather than inset inside the fill the way `PaintRoundOutline`'s is, but takes the same half-pixel offset and the same DPI pen scaling, so a 1px polygon edge lands on the same pixels as a 1px `PaintRoundOutline` frame it joins. Fewer than 3 vertices, or a null `pts`, paints nothing. |
 | `PaintLine( nWidth, nLeft, nTop, nRight, nBottom ) as long` | A rule in the **pen** colour. `nWidth` is a thickness in unscaled units and is the **only** DPI-scaled value in the class (via `ScaleY`, floored at 1). Axis-aligned rules are painted as filled rectangles — hard-edged, pen centred the way GDI centres it, endpoint **exclusive** at any thickness. A diagonal is drawn as an antialiased line with the endpoint **included**. Requires a `CWindow` behind the window handle; does nothing without one. |
 | `PaintRectFactory( rc, iStyle, nPenWidth = 1, nCurvature = 0 ) as long` | The workhorse the four rectangle methods above are thin wrappers over. `iStyle` is a **GDI pen style** — `PS_SOLID` to stroke, `PS_NULL` to fill only. `nCurvature` is the corner ellipse **diameter** (0 = square corners, which also disables antialiasing); it is halved to a radius internally and clamped to half the shape. `nPenWidth <= 0` means no stroke, the same as `PS_NULL`. It always fills with the back colour. Call it directly only when you need a combination the wrappers do not offer. |
 | `PaintIconButton( wszText, rc, nCurvature = 20 ) as long` | Convenience: a `PaintRoundRect` in the back colour with `PaintText( …, DT_CENTER )` over it in the fore colour, using the current font. Centred both ways, since `PaintText` forces `DT_VCENTER`. |
@@ -399,8 +412,8 @@ changed.
 
 | State | Set with | Read by |
 |---|---|---|
-| Back colour | `SetBackColor`, `SetColors`, `SetBackColorA` | Every fill: `PaintClientRect`, `PaintRect`, `PaintRoundRect`, `PaintEllipse`, the interiors of `PaintBorderRect` / `PaintRoundBorderRect` / `PaintRectFactory`, and `PaintIconButton`'s body |
-| Pen colour | `SetPenColor`, `SetPenColorA` | Every stroke: the borders from `PaintRectFactory` (so `PaintBorderRect` and `PaintRoundBorderRect`), `PaintRoundOutline`, `PaintEllipse`'s rim, and every `PaintLine` rule |
+| Back colour | `SetBackColor`, `SetColors`, `SetBackColorA` | Every fill: `PaintClientRect`, `PaintRect`, `PaintRoundRect`, `PaintEllipse`, `PaintPolygon`, the interiors of `PaintBorderRect` / `PaintRoundBorderRect` / `PaintRectFactory`, and `PaintIconButton`'s body. **Not** `PaintGradientRect`, whose two stops are arguments |
+| Pen colour | `SetPenColor`, `SetPenColorA` | Every stroke: the borders from `PaintRectFactory` (so `PaintBorderRect` and `PaintRoundBorderRect`), `PaintRoundOutline`, `PaintEllipse`'s rim, `PaintPolygon`'s outline, and every `PaintLine` rule |
 | Fore colour | `SetForeColor`, `SetColors`, `SetForeColorA` | Text: `PaintText`, `PaintTextEx`, and `PaintIconButton`'s caption. **Not** `PaintChar`, which takes its colour as an argument |
 | Back alpha | `SetBackColorA` | The same fills, blended against what is already on the surface |
 | Pen alpha | `SetPenColorA` | The same strokes |
@@ -434,6 +447,10 @@ The defaults that do exist are argument defaults:
 | `PaintRoundOutline` | `nCurvature` | 20 | Corner ellipse **diameter** |
 | `PaintRoundOutline` | `nPenWidth` | 1 | One-pixel stroke; 0 or less draws nothing |
 | `PaintEllipse` | `nPenWidth` | 0 | **Fill only, no rim** |
+| `PaintPolygon` | `nPenWidth` | 0 | **Fill only, no outline** |
+| `PaintGradientRect` | `nMode` | `LinearGradientModeVertical` (1) | A vertical blend across a horizontal bar |
+| `PaintGradientRect` | `nCurvature` | 0 | Square corners |
+| `PaintGradientRect` | `rcBrush` | 0 | Measure the ramp across `rc` itself |
 | `PaintIconButton` | `nCurvature` | 20 | Corner ellipse **diameter** |
 
 Alpha defaults to 255 (opaque) for the back, pen and fore colours.
